@@ -15,13 +15,13 @@ use Nette\Forms\Controls\SubmitButton;
 use Nette\Utils\Callback;
 
 
-
 /**
  * @author Filip Procházka <filip@prochazka.su>
  * @author Jan Tvrdík
  *
- * @method \Nette\Application\UI\Form getForm()
- * @property \Nette\Forms\Container $parent
+ * @method \Nette\Application\UI\Form getForm($throw = TRUE)
+ * @property Nette\Forms\Container $parent
+ * @property Nette\Forms\Container[] $containers
  */
 class Container extends Nette\Forms\Container
 {
@@ -51,13 +51,12 @@ class Container extends Nette\Forms\Container
 	private $httpPost;
 
 
-
 	/**
 	 * @param callable $factory
 	 * @param int $createDefault
 	 * @param bool $forceDefault
 	 *
-	 * @throws \Nette\InvalidArgumentException
+	 * @throws Nette\InvalidArgumentException
 	 */
 	public function __construct($factory, $createDefault = 0, $forceDefault = FALSE)
 	{
@@ -74,10 +73,9 @@ class Container extends Nette\Forms\Container
 			);
 		}
 
-		$this->createDefault = (int)$createDefault;
+		$this->createDefault = (int) $createDefault;
 		$this->forceDefault = $forceDefault;
 	}
-
 
 
 	/**
@@ -87,7 +85,6 @@ class Container extends Nette\Forms\Container
 	{
 		$this->factoryCallback = Callback::closure($factory);
 	}
-
 
 
 	/**
@@ -112,10 +109,9 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
 	 * @param boolean $recursive
-	 * @return \ArrayIterator|\Nette\Forms\Container[]
+	 * @return \Iterator|Nette\Forms\Container[]
 	 */
 	public function getContainers($recursive = FALSE)
 	{
@@ -123,10 +119,9 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
 	 * @param boolean $recursive
-	 * @return \ArrayIterator|Nette\Forms\Controls\SubmitButton[]
+	 * @return \Iterator|Nette\Forms\Controls\SubmitButton[]
 	 */
 	public function getButtons($recursive = FALSE)
 	{
@@ -134,16 +129,15 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
 	 * Magical component factory
 	 *
 	 * @param string $name
-	 * @return \Nette\Forms\Container
+	 * @return Nette\Forms\Container
 	 */
 	protected function createComponent($name)
 	{
-		$container = $this->createContainer($name);
+		$container = $this->createContainer();
 		$container->currentGroup = $this->currentGroup;
 		$this->addComponent($container, $name, $this->getFirstControlName());
 
@@ -151,7 +145,6 @@ class Container extends Nette\Forms\Container
 
 		return $this->created[$container->name] = $container;
 	}
-
 
 
 	/**
@@ -165,18 +158,14 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
-	 * @param string $name
-	 *
-	 * @return \Nette\Forms\Container
+	 * @return Nette\Forms\Container
 	 */
-	protected function createContainer($name)
+	protected function createContainer()
 	{
 		$class = $this->containerClass;
 		return new $class();
 	}
-
 
 
 	/**
@@ -198,14 +187,13 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
 	 * Create new container
 	 *
 	 * @param string|int $name
 	 *
-	 * @throws \Nette\InvalidArgumentException
-	 * @return \Nette\Forms\Container
+	 * @throws Nette\InvalidArgumentException
+	 * @return Nette\ComponentModel\IComponent|Nette\Forms\Container
 	 */
 	public function createOne($name = NULL)
 	{
@@ -223,14 +211,12 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
 	 * @param array|\Traversable $values
 	 * @param bool $erase
-	 * @param bool $onlyDisabled
-	 * @return \Nette\Forms\Container|Container
+	 * @return Nette\Forms\Container|Container
 	 */
-	public function setValues($values, $erase = FALSE, $onlyDisabled = FALSE)
+	public function setValues($values, $erase = FALSE)
 	{
 		if (!$this->form->isAnchored() || !$this->form->isSubmitted()) {
 			foreach ($values as $name => $value) {
@@ -240,9 +226,24 @@ class Container extends Nette\Forms\Container
 			}
 		}
 
-		return parent::setValues($values, $erase, $onlyDisabled);
+		return parent::setValues($values, $erase);
 	}
 
+	/**
+	 * @param array|NULL $controls
+	 */
+	public function validate(array $controls = NULL)
+	{
+		if (!$this->isAllFilled()) {
+			foreach ($this->containers as $container) {
+				if (!isset($this->httpPost[$container->getName()])) {
+					$this->remove($container);
+				}
+			}
+		}
+
+		parent::validate($controls);
+	}
 
 
 	/**
@@ -261,7 +262,6 @@ class Container extends Nette\Forms\Container
 			}
 		}
 	}
-
 
 
 	/**
@@ -287,7 +287,6 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
 	 * @param string $name
 	 * @return array|null
@@ -297,7 +296,6 @@ class Container extends Nette\Forms\Container
 		$post = $this->getHttpData();
 		return isset($post[$name]) ? $post[$name] : NULL;
 	}
-
 
 
 	/**
@@ -314,10 +312,9 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
 	 * @internal
-	 * @param \Nette\Application\Request $request
+	 * @param Nette\Application\Request $request
 	 * @return Container
 	 */
 	public function setRequest(Nette\Application\Request $request)
@@ -327,9 +324,8 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
-	 * @return \Nette\Application\Request
+	 * @return Nette\Application\Request|Nette\Http\IRequest
 	 */
 	private function getRequest()
 	{
@@ -341,12 +337,11 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
-	 * @param \Nette\Forms\Container $container
+	 * @param Nette\Forms\Container $container
 	 * @param boolean $cleanUpGroups
 	 *
-	 * @throws \Nette\InvalidArgumentException
+	 * @throws Nette\InvalidArgumentException
 	 * @return void
 	 */
 	public function remove(Nette\Forms\Container $container, $cleanUpGroups = FALSE)
@@ -357,14 +352,14 @@ class Container extends Nette\Forms\Container
 
 		// to check if form was submitted by this one
 		foreach ($container->getComponents(TRUE, 'Nette\Forms\ISubmitterControl') as $button) {
-			/** @var \Nette\Forms\Controls\SubmitButton $button */
+			/* @var \Nette\Forms\Controls\SubmitButton $button */
 			if ($button->isSubmittedBy()) {
 				$this->submittedBy = TRUE;
 				break;
 			}
 		}
 
-		/** @var \Nette\Forms\Controls\BaseControl[] $components */
+		/* @var \Nette\Forms\Controls\BaseControl[] $components */
 		$components = $container->getComponents(TRUE);
 		$this->removeComponent($container);
 
@@ -376,7 +371,7 @@ class Container extends Nette\Forms\Container
 		// walk groups and clean then from removed components
 		$affected = [];
 		foreach ($this->getForm()->getGroups() as $group) {
-			/** @var \SplObjectStorage $groupControls */
+			/* @var \SplObjectStorage $groupControls */
 			$groupControls = $controlsProperty->getValue($group);
 
 			foreach ($components as $control) {
@@ -398,7 +393,7 @@ class Container extends Nette\Forms\Container
 				}
 			}
 
-			/** @var \Nette\Forms\ControlGroup[] $affected */
+			/* @var \Nette\Forms\ControlGroup[] $affected */
 			foreach ($affected as $group) {
 				if (!$group->getControls() && in_array($group, $this->getForm()->getGroups(), TRUE)) {
 					$this->getForm()->removeGroup($group);
@@ -406,7 +401,6 @@ class Container extends Nette\Forms\Container
 			}
 		}
 	}
-
 
 
 	/**
@@ -418,7 +412,7 @@ class Container extends Nette\Forms\Container
 	 */
 	public function countFilledWithout(array $components = [], array $subComponents = [])
 	{
-		$httpData = array_diff_key((array)$this->getHttpData(), array_flip($components));
+		$httpData = array_diff_key((array) $this->getHttpData(), array_flip($components));
 
 		if (!$httpData) {
 			return 0;
@@ -438,7 +432,6 @@ class Container extends Nette\Forms\Container
 
 		return count(array_filter($rows));
 	}
-
 
 
 	/**
@@ -465,23 +458,21 @@ class Container extends Nette\Forms\Container
 	}
 
 
-
 	/**
 	 * @param $name
-	 * @return \Nette\Forms\Container
+	 * @return Nette\Forms\Container
 	 */
-	public function addContainer($name)
+	public function addContainer($name): Nette\Forms\Container
 	{
 		return $this[$name] = new Nette\Forms\Container();
 	}
-
 
 
 	/**
 	 * @param \Nette\ComponentModel\IComponent $component
 	 * @param $name
 	 * @param null $insertBefore
-	 * @return \Nette\ComponentModel\Container|\Nette\Forms\Container
+	 * @return \Nette\ComponentModel\Container|Nette\Forms\Container
 	 */
 	public function addComponent(Nette\ComponentModel\IComponent $component, $name, $insertBefore = NULL)
 	{
@@ -491,7 +482,6 @@ class Container extends Nette\Forms\Container
 		$this->currentGroup = $group;
 		return $this;
 	}
-
 
 
 	/**
